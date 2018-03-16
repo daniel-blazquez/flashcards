@@ -1,14 +1,14 @@
 /**
- * Create a open translate menu item.
- */
+ * Listens to events from the custom HTML side bar
+*/
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('Page');
 }
 
 
 /**
- * Create a open translate menu item.
- */
+ * Creates user interface in the bar
+*/
 function onOpen(event) {
   SlidesApp.getUi() 
       .createMenu('Quizz')
@@ -34,22 +34,40 @@ function showAlert() {
   }
 }
 
+
+/**
+ * Initiates a new quizz: shuffle the slides, save the quiz in Google Sheets, 
+*/
 function quizz(event) {
  
   // Generate quizz
   var quizz = shuffle(SlidesApp.getActivePresentation().getSlides())
   
-  // Save quizz to spreadsheet columns
+  // Save quizz to master quizz 
   var sheet = SpreadsheetApp.create('quizz')
-   Logger.log(sheet.getUrl());
-  for (var i = 0; i < quizz.length; i++){
-    var title = quizz[i].getPageElements()[0].asShape().getText().asString()
-    sheet.appendRow([i, title])
-   }
-    
-    
-    //SlidesApp.getUi().alert(tit
   
+  // Save quizz to temp sheet
+  var bufferSheet = SpreadsheetApp.create('quizz-TEMP')
+  
+  // Log document URL
+  Logger.log(sheet.getUrl());
+  
+  // Create a new sheet with the name of current date and time
+  var date = new Date();  
+  var options = {  
+    weekday: "long", year: "numeric", month: "short",  
+    day: "numeric", hour: "2-digit", minute: "2-digit"  
+  };  
+  var newSheet = sheet.insertSheet();
+   newSheet.setName(date.toLocaleDateString("en-US", options));
+  
+  
+  // save the quizz into the sheet
+  for (var i = 0; i < quizz.length; i++){
+    var title = quizz[i].getPageElements()[0].asShape().getText().asString().slice(0,-1)
+    sheet.appendRow([i, title])
+    bufferSheet.appendRow([i, title])
+  }
   
   // Prepare interface
   var html = HtmlService.createHtmlOutputFromFile('Page')
@@ -60,11 +78,15 @@ function quizz(event) {
 
 
 function test (){
-  var ui = SlidesApp.getUi(); // Same variations.  
-  var quizz = PropertiesService.getScriptProperties().getProperty('quizz');
+  var ui = SlidesApp.getUi();   
+  var temp = getSpreadsheetByName('quizz-TEMP')
+  
+  var drng = temp.getDataRange();
+  var rng = sht.getRange(2,1, drng.getLastRow()-1,drng.getLastColumn());
+  var rngA = rng.getValues();//Array of input values
+  for(var i = 0; i < rngA.length; i++) {
 
-
-  Logger.log(quizz.length)
+  }
   
   for (var i = 0; i < quizz.length; i++){
     var title = quizz[i].getPageElements()[0].asShape().getText().asString()
@@ -92,6 +114,9 @@ function test (){
 }
 
 
+/**
+ * Helper method to shuffle slides. Fisher-Yates (aka Knuth) Shuffle technique
+ */
 function shuffle(array) {
   var currentIndex = array.length, temporaryValue, randomIndex;
 
@@ -127,6 +152,22 @@ function showAlert() {
     // User clicked "No" or X in the title bar.
     ui.alert('Permission denied.');
   }
+}
+
+function getSpreadsheetByName(filename) {
+  var files = DocsList.find(filename);
+
+  for(var i in files)
+  {
+    if(files[i].getName() == filename)
+    {
+      // open - undocumented function
+      return SpreadsheetApp.open(files[i]);
+      // openById - documented but more verbose
+      // return SpreadsheetApp.openById(files[i].getId());
+    }
+  }
+  return null;
 }
 
 /**
